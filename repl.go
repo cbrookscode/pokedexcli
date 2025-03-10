@@ -13,23 +13,6 @@ type cliCommand struct {
 	callback 	func() error
 }
 
-var supported_cmds map[string]cliCommand
-
-func init() {
-	supported_cmds = map[string]cliCommand{
-		"exit": {
-			name: "exit",
-			description: "Exit the Pokedex",
-			callback: commandExit,
-		},
-		"help": {
-			name: "help",
-			description: "Displays a help message",
-			callback: commandHelp,
-		},
-	}
-}
-
 func repl_loop() {
 	scanner := bufio.NewScanner(os.Stdin)
 	for {
@@ -49,9 +32,11 @@ func repl_loop() {
 		}
 
 		// if command exists in supported commands, call its callback function. if there is an error, print it. if command doesn't exist let user know.
-		command := user_words[0]
-		if _,ok := supported_cmds[command]; ok {
-			err := supported_cmds[command].callback()
+		commandname := user_words[0]
+
+		command, exists := getCommands()[commandname]
+		if exists {
+			err := command.callback()
 			if err != nil {
 				fmt.Errorf("Error executing callback for given command: %w", err)
 			}
@@ -68,6 +53,21 @@ func cleanInput(text string) []string {
 	return strings.Fields(strings.ToLower(text))
 }
 
+func getCommands() map[string]cliCommand {
+	return map[string]cliCommand{
+		"exit": {
+			name: "exit",
+			description: "Exit the Pokedex",
+			callback: commandExit,
+		},
+		"help": {
+			name: "help",
+			description: "Displays a help message",
+			callback: commandHelp,
+		},
+	}
+}
+
 func commandExit() error {
 	fmt.Println("Closing the Pokedex... Goodbye!")
 	os.Exit(0)
@@ -75,10 +75,13 @@ func commandExit() error {
 }
 
 func commandHelp() error {
+	fmt.Println()
 	fmt.Println("Welcome to the Pokedex!")
-	fmt.Printf("Usage:\n\n")
-	for key,value := range supported_cmds {
+	fmt.Println("Usage:")
+	fmt.Println()
+	for key,value := range getCommands() {
 		fmt.Printf("%s: %s\n", key, value.description)
 	}
+	fmt.Println()
 	return nil
 }
