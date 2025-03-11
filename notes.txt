@@ -1,0 +1,4 @@
+review function logic, naming conventions, and code organization
+revisit concurrency, go routine logic, and thread safety
+review error handling. when to print vs when to store errors. felt like some errors were not printing to console like i wanted.
+Review tests and do more reseach into testing syntax

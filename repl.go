@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"github.com/cbrookscode/pokedexcli/internal"
-)
 
+	commands "github.com/cbrookscode/pokedexcli/internal"
+)
 
 func repl_loop() {
 	scanner := bufio.NewScanner(os.Stdin)
@@ -15,7 +15,7 @@ func repl_loop() {
 
 	for {
 		fmt.Printf("Pokedex > ")
-		
+
 		// check if obtaining user input was successful. Clean input if so, else check for error.
 		var user_words []string
 		if scanner.Scan() {
