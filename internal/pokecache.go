@@ -67,12 +67,14 @@ func (c *Cache) reapLoop(duration time.Duration) {
 				delete(c.Cachemap, key)
 			}
 			c.mu.Unlock()
+		// currently not using stop feature
 		case <-c.stopChan:
 			return
 		}
 	}
 }
 
+// currently not in use
 func (c *Cache) Close() {
 	close(c.stopChan)
 }

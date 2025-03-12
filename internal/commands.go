@@ -1,7 +1,6 @@
 package internal
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -14,7 +13,7 @@ import (
 var cache *Cache
 
 func init() {
-	cache = NewCache(30 * time.Second)
+	cache = NewCache(1200 * time.Second)
 }
 
 type Config struct {
@@ -61,7 +60,6 @@ func GetCommands() map[string]CliCommand {
 func CommandExit(c *Config) error {
 	_ = c
 	fmt.Println("Closing the Pokedex... Goodbye!")
-	// cache.Close()
 	os.Exit(0)
 	return nil
 }
@@ -80,39 +78,44 @@ func CommandHelp(c *Config) error {
 }
 
 func getLocations(c *Config, thecache *Cache, endpoint_url string) error {
-	var myreader io.Reader
 
 	value, exists := thecache.Get(endpoint_url)
 
 	if exists {
-		myreader = bytes.NewReader(value)
+		// using cache
+		err := json.Unmarshal(value, c)
+		if err != nil {
+			return fmt.Errorf("issue with unmarshaling json from cache: %w", err)
+		}
+		for _, location := range c.Results {
+			fmt.Printf("location name: %v\n", location.Name)
+		}
 	} else {
+		// making get request
 		res, err := http.Get(endpoint_url)
 		if err != nil {
-			return err
+			return fmt.Errorf("error with get request: error = %w", err)
 		}
 		defer res.Body.Close()
 		if res.StatusCode < 200 && res.StatusCode > 299 {
-			return fmt.Errorf("Error with response from Get request: Status = %v", res.StatusCode)
+			return fmt.Errorf("error with response from get request: status = %d", res.StatusCode)
 		}
 
 		raw_bytes, err := io.ReadAll(res.Body)
 		if err != nil {
-			return err
+			return fmt.Errorf("error reading response body using io.ReadAll: error = %w", err)
 		}
+
+		err = json.Unmarshal(raw_bytes, c)
+		if err != nil {
+			return fmt.Errorf("error unmarshalling from new get request: error = %w", err)
+		}
+
+		for _, location := range c.Results {
+			fmt.Printf("location name: %v\n", location.Name)
+		}
+
 		thecache.Add(endpoint_url, raw_bytes)
-
-		myreader = bytes.NewReader(raw_bytes)
-	}
-
-	decoder := json.NewDecoder(myreader)
-	err := decoder.Decode(c)
-	if err != nil {
-		return err
-	}
-
-	for _, location := range c.Results {
-		fmt.Printf("location name: %v\n", location.Name)
 	}
 	return nil
 }

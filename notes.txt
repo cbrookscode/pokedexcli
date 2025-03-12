@@ -1,4 +1,8 @@
-review function logic, naming conventions, and code organization
-revisit concurrency, go routine logic, and thread safety
-review error handling. when to print vs when to store errors. felt like some errors were not printing to console like i wanted.
-Review tests and do more reseach into testing syntax
+Things to work on:
+- function logic and O(n) efficiencies.
+- naming conventions
+- code organization
+- Concurrency efficiencies in function logic (channels, mutex)
+- Use of interfaces, generics
+- Fancier error handling techniques
+- Testing in go (failing early. t.errorf, t.fatal("err msg")). failing early if err is nil.
