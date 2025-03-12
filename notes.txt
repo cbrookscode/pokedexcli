@@ -1,3 +1,5 @@
+Look to implement generics logic with get location data and get locations functions. essentially same logic.
+
 Things to work on:
 - function logic and O(n) efficiencies.
 - naming conventions

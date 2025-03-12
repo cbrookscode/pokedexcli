@@ -10,18 +10,14 @@ import (
 )
 
 func repl_loop() {
-	scanner := bufio.NewScanner(os.Stdin)
 	Config_pointer := &commands.Config{}
 
 	for {
 		fmt.Printf("Pokedex > ")
 
 		// check if obtaining user input was successful. Clean input if so, else check for error.
-		var user_words []string
-		if scanner.Scan() {
-			user_words = cleanInput(scanner.Text())
-		} else if err := scanner.Err(); err != nil {
-			err := fmt.Errorf("there was an error: %w", err)
+		user_words, err := getUserInput()
+		if err != nil {
 			fmt.Println(err)
 			return
 		}
@@ -33,10 +29,11 @@ func repl_loop() {
 
 		// if command exists in supported commands, call its callback function. if there is an error, print it. if command doesn't exist let user know.
 		commandname := user_words[0]
+		params := user_words[1:]
 
 		command, exists := commands.GetCommands()[commandname]
 		if exists {
-			err := command.Callback(Config_pointer)
+			err = command.Callback(Config_pointer, params...)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -51,4 +48,17 @@ func cleanInput(text string) []string {
 		return []string{}
 	}
 	return strings.Fields(strings.ToLower(text))
+}
+
+func getUserInput() ([]string, error) {
+	scanner := bufio.NewScanner(os.Stdin)
+	user_words := []string{}
+
+	if scanner.Scan() {
+		user_words = cleanInput(scanner.Text())
+		return user_words, nil
+	} else if err := scanner.Err(); err != nil {
+		return []string{}, fmt.Errorf("Error getting user input: err")
+	}
+	return user_words, nil
 }
