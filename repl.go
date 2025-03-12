@@ -21,7 +21,9 @@ func repl_loop() {
 		if scanner.Scan() {
 			user_words = cleanInput(scanner.Text())
 		} else if err := scanner.Err(); err != nil {
-			fmt.Errorf("There was an error: %w", err)
+			err := fmt.Errorf("there was an error: %w", err)
+			fmt.Println(err)
+			return
 		}
 
 		// if no input skip to next iteration of loop
