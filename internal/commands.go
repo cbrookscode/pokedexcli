@@ -135,47 +135,31 @@ func CommandHelp(c *Config, params ...string) error {
 	fmt.Println()
 	return nil
 }
-
-func getLocations(c *Config, thecache *Cache, endpoint_url string) error {
-
-	value, exists := thecache.Get(endpoint_url)
-
-	if exists {
-		// using cache
-		err := json.Unmarshal(value, c)
-		if err != nil {
-			return fmt.Errorf("issue with unmarshaling json from cache: %w", err)
-		}
-		for _, location := range c.Results {
-			fmt.Printf("location name: %v\n", location.Name)
-		}
-	} else {
-		// making get request
-		res, err := http.Get(endpoint_url)
-		if err != nil {
-			return fmt.Errorf("error with get request: error = %w", err)
-		}
-		defer res.Body.Close()
-		if res.StatusCode < 200 && res.StatusCode > 299 {
-			return fmt.Errorf("error with response from get request: status = %d", res.StatusCode)
-		}
-
-		raw_bytes, err := io.ReadAll(res.Body)
-		if err != nil {
-			return fmt.Errorf("error reading response body using io.ReadAll: error = %w", err)
-		}
-
-		err = json.Unmarshal(raw_bytes, c)
-		if err != nil {
-			return fmt.Errorf("error unmarshalling from new get request: error = %w", err)
-		}
-
-		for _, location := range c.Results {
-			fmt.Printf("location name: %v\n", location.Name)
-		}
-
-		thecache.Add(endpoint_url, raw_bytes)
+func getBytesFromHttpGet(endpoint_url string) ([]byte, error) {
+	res, err := http.Get(endpoint_url)
+	if err != nil {
+		return []byte{}, fmt.Errorf("error with get request: error = %w", err)
 	}
+	defer res.Body.Close()
+	if res.StatusCode < 200 || res.StatusCode > 299 {
+		return []byte{}, fmt.Errorf("error with response from get request: status = %d", res.StatusCode)
+	}
+
+	raw_bytes, err := io.ReadAll(res.Body)
+	if err != nil {
+		return []byte{}, fmt.Errorf("error reading response body using io.ReadAll: error = %w", err)
+	}
+	return raw_bytes, nil
+}
+
+// Get raw []byte data and store in cache
+func getPokedata(endpoint_url string) error {
+	raw_bytes, err := getBytesFromHttpGet(endpoint_url)
+	if err != nil {
+		return fmt.Errorf("error getting bytes from http")
+	}
+	cache.Add(endpoint_url, raw_bytes)
+
 	return nil
 }
 
@@ -185,86 +169,85 @@ func CommandMap(c *Config, params ...string) error {
 	if c.Next != nil {
 		endpoint_url = *c.Next
 	}
-	err := getLocations(c, cache, endpoint_url)
 
+	_, exist := cache.Get(endpoint_url)
+	if !exist {
+		err := getPokedata(endpoint_url)
+		if err != nil {
+			return err
+		}
+	}
+
+	data, _ := cache.Get(endpoint_url)
+	err := json.Unmarshal(data, c)
 	if err != nil {
-		return err
+		return fmt.Errorf("error unmarshalling json")
+	}
+
+	for _, location := range c.Results {
+		fmt.Printf("location name: %v\n", location.Name)
 	}
 
 	return nil
 }
 
 func CommandMapb(c *Config, params ...string) error {
-
 	if c.Previous == nil {
 		return errors.New("previous page doesn't exist")
 	}
 
 	endpoint_url := *c.Previous
 
-	err := getLocations(c, cache, endpoint_url)
+	_, exist := cache.Get(endpoint_url)
+	if !exist {
+		err := getPokedata(endpoint_url)
+		if err != nil {
+			return err
+		}
+	}
 
+	data, _ := cache.Get(endpoint_url)
+	err := json.Unmarshal(data, c)
 	if err != nil {
-		return err
+		return fmt.Errorf("error unmarshalling json")
+	}
+
+	for _, location := range c.Results {
+		fmt.Printf("location name: %v\n", location.Name)
 	}
 
 	return nil
 }
 
-func get_Location_data(location string, cache *Cache) (*LocationData, error) {
-	endpoint_url := "https://pokeapi.co/api/v2/location-area/" + location
-	value, exists := cache.Get(endpoint_url)
-	loc_data := &LocationData{}
-
-	if exists {
-		err := json.Unmarshal(value, loc_data)
-		if err != nil {
-			return loc_data, fmt.Errorf("error unmarshalling cached location data: %w", err)
-		}
-	} else {
-		res, err := http.Get(endpoint_url)
-		if err != nil {
-			return loc_data, fmt.Errorf("error getting response from endpoint during get location data: error = %w", err)
-		}
-
-		defer res.Body.Close()
-		if res.StatusCode < 200 && res.StatusCode > 299 {
-			return loc_data, fmt.Errorf("error with response from get request: status = %d", res.StatusCode)
-		}
-
-		data, err := io.ReadAll(res.Body)
-		if err != nil {
-			return loc_data, fmt.Errorf("error reading body from get loc data response: error = %w", err)
-		}
-
-		err = json.Unmarshal(data, loc_data)
-		if err != nil {
-			return loc_data, fmt.Errorf("error unmarshalling data from loc data get response: %w", err)
-		}
-
-		cache.Add(endpoint_url, data)
-	}
-	return loc_data, nil
-}
-
+// seperate func to retrieve data from cache
 func CommandExplore(c *Config, params ...string) error {
 	_ = c
+
+	loc_data := &LocationData{}
+
 	if len(params) == 0 {
 		return fmt.Errorf("need to provide location name")
 	}
 	loc_name := strings.Join(params, "-")
+	key := "https://pokeapi.co/api/v2/location-area/" + loc_name
 
-	loc_data, err := get_Location_data(loc_name, cache)
-	if err != nil {
-		return fmt.Errorf("invalid location, or issue with get reponse")
+	_, exists := cache.Get(key)
+	if !exists {
+		err := getPokedata(key)
+		if err != nil {
+			return fmt.Errorf("invalid location, or issue with get reponse")
+		}
 	}
 
-	if len(loc_data.PokemonEncounters) != 0 {
-		for _, pokemon_struct := range loc_data.PokemonEncounters {
-			fmt.Printf("Pokemon name: %s\n", pokemon_struct.Pokemon.Name)
-		}
-	} else {
-		return fmt.Errorf("no")
+	cache_data, _ := cache.Get(key)
+
+	err := json.Unmarshal(cache_data, loc_data)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling json")
+	}
+
+	for _, pokemon_struct := range loc_data.PokemonEncounters {
+		fmt.Printf("Pokemon name: %s\n", pokemon_struct.Pokemon.Name)
 	}
 
 	return nil
