@@ -163,6 +163,26 @@ func getPokedata(endpoint_url string) error {
 	return nil
 }
 
+func structureDataIntoPointerStruct[T any](endpoint_url string, c *T) error {
+	_, exist := cache.Get(endpoint_url)
+	if !exist {
+		fmt.Println("making get request to retrieve data")
+		err := getPokedata(endpoint_url)
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("data exists in cache")
+	}
+
+	data, _ := cache.Get(endpoint_url)
+	err := json.Unmarshal(data, c)
+	if err != nil {
+		return fmt.Errorf("error unmarshalling json")
+	}
+	return nil
+}
+
 func CommandMap(c *Config, params ...string) error {
 	endpoint_url := "https://pokeapi.co/api/v2/location-area/"
 
@@ -170,18 +190,9 @@ func CommandMap(c *Config, params ...string) error {
 		endpoint_url = *c.Next
 	}
 
-	_, exist := cache.Get(endpoint_url)
-	if !exist {
-		err := getPokedata(endpoint_url)
-		if err != nil {
-			return err
-		}
-	}
-
-	data, _ := cache.Get(endpoint_url)
-	err := json.Unmarshal(data, c)
+	err := structureDataIntoPointerStruct(endpoint_url, c)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling json")
+		return err
 	}
 
 	for _, location := range c.Results {
@@ -198,18 +209,9 @@ func CommandMapb(c *Config, params ...string) error {
 
 	endpoint_url := *c.Previous
 
-	_, exist := cache.Get(endpoint_url)
-	if !exist {
-		err := getPokedata(endpoint_url)
-		if err != nil {
-			return err
-		}
-	}
-
-	data, _ := cache.Get(endpoint_url)
-	err := json.Unmarshal(data, c)
+	err := structureDataIntoPointerStruct(endpoint_url, c)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling json")
+		return err
 	}
 
 	for _, location := range c.Results {
@@ -231,23 +233,15 @@ func CommandExplore(c *Config, params ...string) error {
 	loc_name := strings.Join(params, "-")
 	key := "https://pokeapi.co/api/v2/location-area/" + loc_name
 
-	_, exists := cache.Get(key)
-	if !exists {
-		err := getPokedata(key)
-		if err != nil {
-			return fmt.Errorf("invalid location, or issue with get reponse")
-		}
-	}
-
-	cache_data, _ := cache.Get(key)
-
-	err := json.Unmarshal(cache_data, loc_data)
+	err := structureDataIntoPointerStruct(key, loc_data)
 	if err != nil {
-		return fmt.Errorf("error unmarshalling json")
+		return fmt.Errorf("invalid location name")
 	}
 
+	fmt.Printf("Exploring %s\n", loc_name)
+	fmt.Println("Found Pokemon:")
 	for _, pokemon_struct := range loc_data.PokemonEncounters {
-		fmt.Printf("Pokemon name: %s\n", pokemon_struct.Pokemon.Name)
+		fmt.Printf("- %s\n", pokemon_struct.Pokemon.Name)
 	}
 
 	return nil

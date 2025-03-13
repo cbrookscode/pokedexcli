@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -18,8 +19,9 @@ func repl_loop() {
 		// check if obtaining user input was successful. Clean input if so, else check for error.
 		user_words, err := getUserInput()
 		if err != nil {
-			fmt.Println(err)
-			return
+			if err == io.EOF {
+				break
+			}
 		}
 
 		// if no input skip to next iteration of loop
@@ -58,7 +60,8 @@ func getUserInput() ([]string, error) {
 		user_words = cleanInput(scanner.Text())
 		return user_words, nil
 	} else if err := scanner.Err(); err != nil {
-		return []string{}, fmt.Errorf("Error getting user input: err")
+		return []string{}, fmt.Errorf("error getting user input: %w", err)
+	} else {
+		return []string{}, io.EOF
 	}
-	return user_words, nil
 }
