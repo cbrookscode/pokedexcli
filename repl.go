@@ -54,10 +54,9 @@ func cleanInput(text string) []string {
 
 func getUserInput() ([]string, error) {
 	scanner := bufio.NewScanner(os.Stdin)
-	user_words := []string{}
 
 	if scanner.Scan() {
-		user_words = cleanInput(scanner.Text())
+		user_words := cleanInput(scanner.Text())
 		return user_words, nil
 	} else if err := scanner.Err(); err != nil {
 		return []string{}, fmt.Errorf("error getting user input: %w", err)
